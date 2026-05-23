@@ -96,7 +96,6 @@ jobs:
           artifact-id: ${{ needs.build.outputs.artifactId }}
           target-environment: "production"
           cloudbees-url: "https://api.saas-qa.beescloud.com"
-          cloudbees-pat: ${{ secrets.BT_USER_PAT_GHA }}
 
       - name: Trigger Deployment
         uses: cloudbees-io-gha/run-cloudbees-workflow@v1
@@ -157,7 +156,6 @@ jobs:
           artifact-id: ${{ needs.build-2.outputs.artifactId2 }}
           target-environment: "production"
           cloudbees-url: "https://api.saas-qa.beescloud.com"
-          cloudbees-pat: ${{ secrets.BT_USER_PAT_GHA }}
 
       - name: Deploy to Production
         run: echo "Deploying second artifact to production..."
