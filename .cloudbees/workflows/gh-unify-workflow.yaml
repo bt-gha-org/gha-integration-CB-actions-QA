@@ -62,7 +62,7 @@ jobs:
         uses: cloudbees-io/checkout@v1
 
       - name: Publish Test Results in Cloudbees Platform
-        uses: cloudbees-io/publish-test-results@v1
+        uses: cloudbees-io/publish-test-results@v2
         with:
           test-type: GO
           results-path: test-results/results.json
