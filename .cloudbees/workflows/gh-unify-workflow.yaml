@@ -1,67 +1,72 @@
 apiVersion: automation.cloudbees.io/v1alpha1
 kind: workflow
-name: GH Unify Workflow
-'on':
+name: GHA Build
+
+on:
   push:
     branches:
       - main
-  workflow_dispatch: null
+  workflow_dispatch:
+
 env:
   artifact_version: 4.0.0
+
 permissions:
   id-token: write
   scm-token-own: read
+
 jobs:
   build:
     outputs:
-      artifactId: '${{ steps.go-action.outputs.cbp_artifact_id }}'
+      artifactId: ${{ steps.go-action.outputs.artifact-id }}
     steps:
       - name: Compile Code
-        uses: 'docker://alpine:3.19'
+        uses: docker://alpine:3.19
         shell: sh
         run: echo "Compiling..."
+
       - name: Produce Binary
-        uses: 'docker://alpine:3.19'
+        uses: docker://alpine:3.19
         shell: sh
         run: sleep 5
+
       - name: Push binary
-        uses: 'docker://alpine:3.19'
+        uses: docker://alpine:3.19
         shell: sh
         run: echo "Pushing Binary to ECR..."
+
       - name: Register Build Artifacts in Cloudbees Platform
         uses: cloudbees-io/register-build-artifact@v2
         id: go-action
         with:
-          name: Automation test for Register-Artifacts
-          version: '${{ env.artifact_version }}'
-          url: 'docker.io/SampleApp/SampleApp-Backend-15:${{ env.artifact_version }}'
-          type: docker
+          name: "Automation test for Register-Artifacts"
+          version: ${{ env.artifact_version }}
+          url: docker.io/SampleApp/SampleApp-Backend-15:${{ env.artifact_version }}
+          type: "docker"
+
       - name: Publish evidence
         uses: cloudbees-io/publish-evidence-item@v1
         with:
-          content: Build Completed and artifacts published to Cloudbees platform
-      - name: Set the artifact-id
-        id: artifact-id
-        uses: 'docker://alpine:3.19'
-        shell: sh
-        run: >
-          echo "cbp_artifact_id=${{ steps.go-action.outputs.cbp_artifact_id }}"
-          >> $CLOUDBEES_OUTPUTS
+          content: |-
+            Build Completed and artifacts published to Cloudbees platform
+
   test:
-    needs:
-      - build
+    needs: [build]
     steps:
       - name: Run tests
-        uses: 'docker://alpine:3.19'
+        uses: docker://alpine:3.19
         shell: sh
         run: echo "Running Tests..."
+
       - name: Checkout to Collect Test Results
         uses: cloudbees-io/checkout@v1
+
       - name: Publish Test Results in Cloudbees Platform
         uses: cloudbees-io/publish-test-results@v1
         with:
           test-type: GO
           results-path: test-results/results.json
+
       - name: Publish evidence
         uses: cloudbees-io/publish-evidence-item@v1
         with:
@@ -72,76 +77,75 @@ jobs:
             Test 1 | PASS |
             Test 2 | FAIL |
             Test 3 | PASS |
+
   deploy:
-    needs:
-      - build
-      - test
+    needs: [build, test]
     steps:
       - name: Checkout to Prepare Manifest
         uses: cloudbees-io/checkout@v1
+
       - name: Register Deployed Artifact in CloudBees Platform
         uses: cloudbees-io/register-deployed-artifact@v2
         with:
-          artifact-id: '${{ needs.build.outputs.artifactId }}'
-          target-environment: production
+          artifact-id: ${{ needs.build.outputs.artifactId }}
+          target-environment: "production"
+
       - name: Trigger Deployment
         uses: cloudbees-io/run-cloudbees-workflow@v1
         id: deploy
         with:
-          cloudbees-pat: '${{ secrets.BT_USER_PAT_GHA }}'
-          branch-name: main
-          workflow-file-name: cbp-deploy.yaml
-          workflow-inputs: >-
-            {"artifactName": "SampleApp-Backend-15","artifactVersion": "${{
-            env.artifact_version }}", "environment": "QA", "artifactId": "${{
-            needs.build.outputs.artifactId }}"}
+          cloudbees-pat: ${{ secrets.BT_USER_PAT_GHA }}
+          branch-name: "main"
+          workflow-file-name: "cbp-deploy.yaml"
+          workflow-inputs: '{"artifactName": "SampleApp-Backend-15","artifactVersion": "${{ env.artifact_version }}", "environment": "QA", "artifactId": "${{ needs.build.outputs.artifactId }}"}'
+
       - name: Use runUrl output
-        uses: 'docker://alpine:3.19'
+        uses: docker://alpine:3.19
         shell: sh
-        run: >-
-          echo "The CloudBees run URL is ${{ steps.deploy.outputs.cbp_run_url
-          }}"
+        run: echo "The CloudBees run URL is ${{ steps.deploy.outputs.cbp_run_url }}"
+
   build-2:
-    needs:
-      - deploy
+    needs: [deploy]
     outputs:
-      artifactId2: '${{ steps.go-action-2.outputs.cbp_artifact_id }}'
+      artifactId2: ${{ steps.go-action-2.outputs.artifact-id }}
     steps:
       - name: Compile Code - Second Build
-        uses: 'docker://alpine:3.19'
+        uses: docker://alpine:3.19
         shell: sh
         run: echo "Compiling second artifact..."
+
       - name: Produce Binary - Second Build
-        uses: 'docker://alpine:3.19'
+        uses: docker://alpine:3.19
         shell: sh
         run: sleep 5
+
       - name: Register Build Artifacts in CloudBees Platform - Second Build
         uses: cloudbees-io/register-build-artifact@v2
         id: go-action-2
         with:
-          name: Automation test for Register-Artifacts-2
-          version: 2.0.0
-          url: 'docker.io/SampleApp/SampleApp-Backend-16:2.0.0'
-          type: docker
+          name: "Automation test for Register-Artifacts-2"
+          version: "2.0.0"
+          url: docker.io/SampleApp/SampleApp-Backend-16:2.0.0
+          type: "docker"
+
   test-2:
-    needs:
-      - build-2
+    needs: [build-2]
     steps:
       - name: Run tests - Second Build
-        uses: 'docker://alpine:3.19'
+        uses: docker://alpine:3.19
         shell: sh
         run: echo "Running Tests for second build..."
+
   deploy-2:
-    needs:
-      - build-2
-      - test-2
+    needs: [build-2, test-2]
     steps:
       - name: Register Deployed Artifact in CloudBees Platform - Production
         uses: cloudbees-io/register-deployed-artifact@v2
         with:
-          artifact-id: '${{ needs.build-2.outputs.artifactId2 }}'
-          target-environment: production
+          artifact-id: ${{ needs.build-2.outputs.artifactId2 }}
+          target-environment: "production"
+
       - name: Deploy to Production
-        uses: 'docker://alpine:3.19'
+        uses: docker://alpine:3.19
         shell: sh
         run: echo "Deploying second artifact to production..."
