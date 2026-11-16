@@ -158,7 +158,7 @@ jobs:
           cloudbees-url: "https://api.saas-qa.beescloud.com"
 
       - name: Deploy to Production
-        run: echo "Deploying second artifact to production..."
+        run: echo "Deploying second artifact to production.."
 
 
 
